@@ -1,3 +1,4 @@
+<script type="text/javascript" src="app/js/jquery.js"></script>
 <?php
 
 header('charset=utf8');
@@ -19,12 +20,13 @@ $publisherSql = "SELECT * FROM lib_publisher";
 $publisherQuery = mysql_query( $publisherSql );
 
 ?>
-
+ 
 <!-- form表单 begin  -->
 
-<form method="post" action="poc.php">
 
-<select name='bookType'>
+<form method="post" action="handle.php">
+
+<select name='bookType' id='bookType' >
 <?php
 while( $bookTypeRows = mysql_fetch_array( $bookTypeQuery, MYSQL_ASSOC ) )
 {
@@ -36,7 +38,7 @@ while( $bookTypeRows = mysql_fetch_array( $bookTypeQuery, MYSQL_ASSOC ) )
 
 </select>
 
-<select name='bookshelf'>
+<select name='bookshelf' id='bookshelf'>
 <?php
 while( $bookshelfRows = mysql_fetch_array( $bookshelfQuery, MYSQL_ASSOC ) )
 {
@@ -48,7 +50,7 @@ while( $bookshelfRows = mysql_fetch_array( $bookshelfQuery, MYSQL_ASSOC ) )
 
 </select>
 
-<select name='publisher'>
+<select name='publisher' id='publisher'>
 <?php
 while( $publisherRows = mysql_fetch_array( $publisherQuery, MYSQL_ASSOC ) )
 {
@@ -65,5 +67,44 @@ while( $publisherRows = mysql_fetch_array( $publisherQuery, MYSQL_ASSOC ) )
 	<input type='submit' />
 </form>
 
+
+<script type='text/javascript'>
+	window.onload = function(){
+
+		// 当下拉框被选择的时候，使用 session 存储选中时的 value ，好让下次的进入页面就已经直接选中
+
+		bookType = $('#bookType');	
+		bookType.change(function(){
+			sessionStorage.bookTypeVal = $(this).val();
+		});
+
+
+		bookshelf = $('#bookshelf');
+		bookshelf.change(function(){
+			sessionStorage.bookshelfVal = $(this).val();
+		});
+
+		
+		// 读取 session 的值，对比 option 的值，一样就选中
+
+		bookTypeOptions = $('#bookType option');
+		bookTypeOptions.each(function(){
+			if( $(this).val() == sessionStorage.bookTypeVal ){
+				$(this).attr('selected','selected');		
+			}
+		});	
+
+
+		bookshelfOptions = $('#bookshelf option');
+		bookshelfOptions.each(function(){
+			if( $(this).val() == sessionStorage.bookshelfVal ){
+				$(this).attr('selected','selected');		
+			}
+		});
+
+	}
+	
+
+</script>
 
 
