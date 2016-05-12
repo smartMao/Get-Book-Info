@@ -63,7 +63,7 @@ while( $publisherRows = mysql_fetch_array( $publisherQuery, MYSQL_ASSOC ) )
 </select>
 
 	
-	<input type='text' name='url' />
+	<input type='text' name='file' />
 	<input type='submit' />
 </form>
 

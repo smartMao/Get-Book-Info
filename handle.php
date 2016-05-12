@@ -17,6 +17,9 @@
  * 
  *
  */
+mysql_connect('localhost','root', '');
+mysql_select_db('library');
+mysql_query('set names gbk');
 
 function dump( $data )
 {
@@ -100,10 +103,9 @@ function getPublisher( $html )
 
 
 
-
 // 读取文件信息
 
-$file      = file_get_contents('computer.txt');
+$file      = file_get_contents( $_POST['file']);
 $fileNotBr = preg_replace('/\r|\n/', '`', $file);
 $urlList   = explode('`', $fileNotBr);
 
@@ -126,79 +128,97 @@ foreach ( $urlList as $key => $value )
 	$book[$key]['page']       = getPage( $html );
 	$book[$key]['publisher']  = getPublisher( $html );
 	 	
-}
-
-dump( $book );exit;
-// 出版社名称已准备好
-
-
-/*
- *  问题检测
- */
-/*
-if ( empty( $bookName)){
-	echo "书名问题";exit;
-}
-
-if ( empty( $ISBN)){
-	echo "ISBN问题";exit;
-}
-
-if ( empty( $author)){
-	#
-}
-
-if ( empty( $price)){
-	#
-}
- */
+	
+	$bookName   = $book[$key]['bookName'];
+	$ISBN       = $book[$key]['ISBN'];
+	$author     = $book[$key]['author'];
+	$translator = $book[$key]['translator'];
+	$price      = $book[$key]['price'];
+	$page       = $book[$key]['page'];
+	
+	#dump( $book );exit;
+	// 出版社名称已准备好
 
 
+	/*
+	 *  问题检测
+	 */
+	/*
+	if ( empty( $bookName)){
+		echo "书名问题";exit;
+	}
 
-mysql_connect('localhost','root', '');
-mysql_select_db('library');
-mysql_query('set names gbk');
+	if ( empty( $ISBN)){
+		echo "ISBN问题";exit;
+	}
 
+	if ( empty( $author)){
+		#
+	}
 
-$publisherSql  = "SELECT * FROM lib_publisher";
-$publisherQuery = mysql_query( $publisherSql );
-while ( $rows = mysql_fetch_assoc( $publisherQuery ))
-{
-	$publisherArr[ ] = $rows;
-}
-dump( $publisherArr );exit;
+	if ( empty( $price)){
+		#
+	}
+	 */
 
 
 
+	# 循环出 lib_publisher 里的全部的出版社信息
+
+	$publisherSql  = "SELECT * FROM lib_publisher";
+	$publisherQuery = mysql_query( $publisherSql );
+	while ( $rows = mysql_fetch_assoc( $publisherQuery ))
+	{
+		$publisherArr[] = $rows;
+	}
 
 
-$bookInfoSql = "INSERT lib_bookInfo(bookInfoBookName, bookInfoBookISBN, bookInfoBookAuthor, bookInfoBookTranslator, bookInfoBookPrice, bookInfoBookPage ) VALUES ( '$bookName', '$ISBN', '$author', '$translator', '$price', '$page');";
+	foreach ( $publisherArr as $pubKey => $pubVal )
+	{
+		// 如果爬取的图书信息 的 出版社 和 lib_publisher 有相匹配的. 
+		if( $book[$key]['publisher'] == $publisherArr[$pubKey]['publisherName'] ){
+				// 出版社ID
+				$publisherID = $publisherArr[$pubKey]['PK_publisherID'];		
+		}
+	}
 
-$bookInfoQuery = mysql_query( $bookInfoSql);
-$bookInfoID    = mysql_insert_id();
 
-if( !$bookInfoQuery ){
-   	echo "bookInfo 数据表插入错误";exit;
-}
+	// 将爬取到的 图书信息插入到 lib_bookInfo 后得到新插入条目的 ID
 
-$bookTypeID  = $_POST['bookType'];
-$bookshelfID = $_POST['bookshelf'];
+	$bookInfoSql = "INSERT lib_bookInfo(bookInfoBookName, bookInfoBookISBN, bookInfoBookAuthor, bookInfoBookTranslator, bookInfoBookPrice, bookInfoBookPage ) VALUES ( '$bookName', '$ISBN', '$author', '$translator', '$price', '$page');";
 
-date_default_timezone_set('PRC');
-$date = date('Y-m-d');
+	$bookInfoQuery = mysql_query( $bookInfoSql);
+	$bookInfoID    = mysql_insert_id();
 
-# bookRelationship 在此
-$bookRelationSql = "INSERT lib_bookRelationship( FK_bookInfoID, FK_publisherID, FK_bookTypeID, FK_managerID, FK_bookshelfID, bookRelationshipStorageTime ) VALUES( '$bookInfoID', '$publisherID', '$bookTypeID', '1', '$bookshelfID', '$date');";
-$bookRelationQuery = mysql_query( $bookRelationSql );
-
-if( $bookRelationQuery ){
-	echo "insert data sussess! click ! <a href='index.php'> goback </a> ";
-} else {
-	echo "数据插入 bookRelationship 时失败";
-}
+	if( !$bookInfoQuery ){
+		echo "bookInfo 数据表插入错误";exit;
+	}
 
 
 
+
+	$bookTypeID  = $_POST['bookType'];
+	$bookshelfID = $_POST['bookshelf'];
+
+	date_default_timezone_set('PRC');
+	$date = date('Y-m-d');
+
+	
+	# 得到上面的 bookInfo ID ，在加上 提交的 图书类型 和 书架 , 和 自动匹配的 出版社名称 
+
+	$bookRelationSql = "INSERT lib_bookRelationship( FK_bookInfoID, FK_publisherID, FK_bookTypeID, FK_managerID, FK_bookshelfID, bookRelationshipStorageTime ) VALUES( '$bookInfoID', '$publisherID', '$bookTypeID', '1', '$bookshelfID', '$date');";
+	$bookRelationQuery = mysql_query( $bookRelationSql );
+
+	if( $bookRelationQuery ){
+		echo "insert data sussess! click ! <a href='index.php'> goback </a> ";
+		echo "<br/>";
+	} else {
+		echo "数据插入 bookRelationship 时失败";
+	}
+
+
+
+}  // 上面循环取 url 的 foreach 的结束
 
 
 
