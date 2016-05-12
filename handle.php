@@ -9,21 +9,14 @@
  *	4. 如果在读取图书信息过程中出现问题（如: 无页码, ISBN号是旧版) 的话，那就不要了，把此次循环跳过。
  *
  * 操作流程：
- *	1. 选择 图书类型 和 书架 下拉框 （存进 sessionStorage )
- *  2. 而 出版社 呢，我改为在程序中自动匹配。（预先在 lib_publisher 插入 500 多个出版社的名字)
+ *	1. 选择 图书类型 和 书架 下拉框 （存进 sessionStorage ) [完成]
+ *  2. 而 出版社 呢，我改为在程序中自动匹配。（预先在 lib_publisher 插入 500 多个出版社的名字) [完成]
  *	   然后，等读取到图书的出版社名字时，直接跟数据库中的 出版社 进行对比.
  *  3. 输入框呢 就直接输入 computer.txt 这个存有许多 url 的文件。
+ *  4. 利用正则把　computer.txt 文件中的 url 单独取出来. 
+ * 
  *
  */
-
-include_once 'simple_html_dom.php';
-
-header("Content-type:text/html;charset=gbk");
-
-#$html = file_get_html( $_POST['url']);
-$html = file_get_html('http://product.dangdang.com/23767822.html');
-
-var_dump( $html );exit;
 
 function dump( $data )
 {
@@ -31,7 +24,14 @@ function dump( $data )
 	var_dump( $data );
 	echo "<br/>";
 }
-dump( $html);exit;
+
+
+include_once 'simple_html_dom.php';
+
+
+
+header("Content-type:text/html;charset=gbk");
+
 
 function getPage( $html )
 {
@@ -55,7 +55,6 @@ function getPrice( $html )
 
 function getAuthorAndTranslator( $html )
 {
-dump( $html );exit;
 	$linkCount  = count( $html-> find('#author', 0)->find('a') );
 
 	$data['author']     = $html -> find('#author', 0) -> find('a', 0)->innertext;	
@@ -92,31 +91,51 @@ function getBookName( $html )
 
 
 
+function getPublisher( $html )
+{
+	$publisher = $html -> find('.messbox_info', 0) -> find('span', 1)->find('a', 0)->innertext;
+	return $publisher;
+}
+
+
+
+
+
+// 读取文件信息
+
+$file      = file_get_contents('computer.txt');
+$fileNotBr = preg_replace('/\r|\n/', '`', $file);
+$urlList   = explode('`', $fileNotBr);
+
+
+
+foreach ( $urlList as $key => $value )
+{
+	if( strlen( $urlList[$key]) < 20 ){ continue; }
+	$html = file_get_html( $value  );	
+
+	# wait ......
+
 	$arr = getAuthorAndTranslator( $html );
 	 
-	$bookName   = getBookName( $html );
-	$ISBN       = getISBN( $html );
-	$author     = $arr['author'];
-	$translator = $arr['translator'];
-	$price      = getPrice( $html );
-	$page       = getPage( $html );
+	$book[$key]['bookName']   = getBookName( $html );
+	$book[$key]['ISBN']       = getISBN( $html );
+	$book[$key]['author']     = $arr['author'];
+	$book[$key]['translator'] = $arr['translator'];
+	$book[$key]['price']      = getPrice( $html );
+	$book[$key]['page']       = getPage( $html );
+	$book[$key]['publisher']  = getPublisher( $html );
+	 	
+}
 
-#echo  $bookName;
-#echo "<br/>";
-#echo  $ISBN;
-#echo "<br/>";
-#echo  $author;
-#echo "<br/>";
-#echo  $translator;
-#echo "<br/>";
-#echo  $price;
-#echo "<br/>";
-#echo  $page;
-#echo "<br/>";
+dump( $book );exit;
+// 出版社名称已准备好
 
 
-
-
+/*
+ *  问题检测
+ */
+/*
 if ( empty( $bookName)){
 	echo "书名问题";exit;
 }
@@ -132,12 +151,25 @@ if ( empty( $author)){
 if ( empty( $price)){
 	#
 }
+ */
 
 
 
 mysql_connect('localhost','root', '');
 mysql_select_db('library');
 mysql_query('set names gbk');
+
+
+$publisherSql  = "SELECT * FROM lib_publisher";
+$publisherQuery = mysql_query( $publisherSql );
+while ( $rows = mysql_fetch_assoc( $publisherQuery ))
+{
+	$publisherArr[ ] = $rows;
+}
+dump( $publisherArr );exit;
+
+
+
 
 
 $bookInfoSql = "INSERT lib_bookInfo(bookInfoBookName, bookInfoBookISBN, bookInfoBookAuthor, bookInfoBookTranslator, bookInfoBookPrice, bookInfoBookPage ) VALUES ( '$bookName', '$ISBN', '$author', '$translator', '$price', '$page');";
@@ -151,7 +183,7 @@ if( !$bookInfoQuery ){
 
 $bookTypeID  = $_POST['bookType'];
 $bookshelfID = $_POST['bookshelf'];
-$publisherID = $_POST['publisher']; 
+
 date_default_timezone_set('PRC');
 $date = date('Y-m-d');
 

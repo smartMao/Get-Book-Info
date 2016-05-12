@@ -23,6 +23,7 @@ foreach( $arr[0] as $key => $value )
 
 $publisherArr = array_unique( $pubArr );
 
+echo "请在代码中开启";exit;
 
 mysql_connect('localhost', 'root', '');
 mysql_select_db('library');
