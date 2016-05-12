@@ -42,6 +42,9 @@ function getPage( $html )
 	$liData = $html->find('.pro_content', 0) -> find('ul', 0) -> find('li', 1);
 	$strPage = $liData->innertext;
 	preg_match('/[0-9]+/', $strPage, $page);
+	if( empty( $page ) ){
+		$page[] = 0;		
+	}
 	return $page[0];
 
 }
@@ -77,7 +80,8 @@ function getISBN( $html )
 	#$div = $html->find('.pro_content', 0);
 	$liData = $html->find('.pro_content', 0) -> find('ul', 0) -> find('li', 9);
 	$strISBN = $liData->innertext;
-	preg_match('/[0-9]{13}/', $strISBN, $ISBN);
+	preg_match('/[0-9]{8,13}/', $strISBN, $ISBN);
+
 	return $ISBN[0];
 }
 
@@ -198,8 +202,7 @@ foreach ( $urlList as $key => $value )
 
 
 	$bookTypeID  = $_POST['bookType'];
-	$bookshelfID = $_POST['bookshelf'];
-
+	$bookshelfID = $_POST['bookshelf']; 
 	date_default_timezone_set('PRC');
 	$date = date('Y-m-d');
 
@@ -210,7 +213,7 @@ foreach ( $urlList as $key => $value )
 	$bookRelationQuery = mysql_query( $bookRelationSql );
 
 	if( $bookRelationQuery ){
-		echo "insert data sussess! click ! <a href='index.php'> goback </a> ";
+		echo "数据已成功进入数据库! <a href='index.php'> goback </a> ";
 		echo "<br/>";
 	} else {
 		echo "数据插入 bookRelationship 时失败";
