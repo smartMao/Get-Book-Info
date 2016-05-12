@@ -50,17 +50,6 @@ while( $bookshelfRows = mysql_fetch_array( $bookshelfQuery, MYSQL_ASSOC ) )
 
 </select>
 
-<select name='publisher' id='publisher'>
-<?php
-while( $publisherRows = mysql_fetch_array( $publisherQuery, MYSQL_ASSOC ) )
-{
-?>
-	<option value="<?php echo $publisherRows['PK_publisherID']; ?>" ><?php echo $publisherRows['publisherName']; ?></option>
-<?php
-}
-?>
-
-</select>
 
 	
 	<input type='text' name='file' />
