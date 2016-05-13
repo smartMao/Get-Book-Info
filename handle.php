@@ -18,9 +18,6 @@
  *		分类下的所有图书都循环完成的话） 
  *
  *		缺点：没有！！哈哈哈哈
- *			
- *			
- *		
  * 
  *
  */
@@ -57,7 +54,6 @@ function dump( $data )
 
 function getPage( $html, $isSelfSupport )
 {
-	$isSelfSupport = false;
 	if( $isSelfSupport ){
 
 		$liData = $html->find('.pro_content', 0) -> find('ul', 0) -> find('li', 1);
@@ -70,35 +66,55 @@ function getPage( $html, $isSelfSupport )
 		return $page[0];
 
 	} else {
-		$liData = $html->find('.pro_content', 0)-> find('div', 0) -> find('ul', 0) -> find('li', 1);
-		dump( $liData );exit;
+		// 因为所有的 非当当自营的图书的页码都是为 0 , 那我就不获取了。
+		return '0';	
 	}
 
 
 }
 
 
-function getPrice( $html )
+function getPrice( $html , $isSelfSupport )
 {
-	$price = $html -> find('.price_d', 0)->innertext;
-	$price  = substr( $price , 5);
-	return $price;
+	if( $isSelfSupport ){
 
+		$price = $html -> find('.price_d', 0)->innertext;
+		$price  = substr( $price , 5);
+		return $price;
+
+	} else {
+		$price = $html -> find('#salePriceTag' ,  0)->innertext;
+		return $price;
+	}
 }
 
 
 function getAuthorAndTranslator( $html , $isSelfSupport)
 {
-	$isSelfSupport = false;
-
 	if( $isSelfSupport ){
 		// 当当自营
-		$linkCount  = count( $html-> find('#author', 0)->find('a') );
-		$data['author']     = $html -> find('#author', 0) -> find('a', 0)->innertext;	
-		$data['translator'] = $html -> find('#author', 0) -> find('a', $linkCount -1)->innertext;	
+		//
+		// 绕过有些图书是没有作者的！ , 因为作者　包含在.messbox_info的<div>
+		// 如果它里面的元素个素少于４个的话，说明没有作者信息
+		$elm = $html->find('.messbox_info');
+		$elmCount = count( $elm[0] -> children );
+		
+		if( $elmCount >= 4 ){
 
-		if( $linkCount == 1) $data['translator'] = null;
+			$linkCount  = count( $html-> find('#author', 0)->find('a') );
+			$data['author']     = $html -> find('#author', 0) -> find('a', 0)->innertext;	
+			$data['translator'] = $html -> find('#author', 0) -> find('a', $linkCount -1)->innertext;	
+
+			if( $linkCount == 1) $data['translator'] = null;
+		
+		} else {
+			// 没有作者信息可以获取,只好自己赋值　
+			$data['author'] = '未知';	
+			$data['translator'] = null;
+		}
+
 		return $data;
+
 	} else {
 		// 非当当自营
 		$data['author'] = $html->find('.book_messbox', 0 )->find('div', 0) -> find('.show_info_right', 0) -> find('a', 0)->innertext;
@@ -113,7 +129,6 @@ function getAuthorAndTranslator( $html , $isSelfSupport)
 
 function getISBN( $html , $isSelfSupport )
 {
-	$isSelfSupport = false;
 	if( $isSelfSupport ){
 
 		#$div = $html->find('.pro_content', 0);
@@ -136,7 +151,6 @@ function getISBN( $html , $isSelfSupport )
 
 function getBookName( $html, $isSelfSupport )
 {
-	$isSelfSupport = false;
 
 	if ( $isSelfSupport ){
 		$title = $html -> find('.name_info', 0) -> find('h1', 0) -> title;
@@ -151,10 +165,26 @@ function getBookName( $html, $isSelfSupport )
 
 
 
-function getPublisher( $html )
+function getPublisher( $html, $isSelfSupport )
 {
-	$publisher = $html -> find('.messbox_info', 0) -> find('span', 1)->find('a', 0)->innertext;
-	return $publisher;
+	if( $isSelfSupport ){
+
+		$elm = $html->find('.messbox_info');
+		$elmCount = count( $elm[0] -> children );
+		
+		if( $elmCount >= 4 ){
+			$publisher = $html -> find('.messbox_info', 0) -> find('span', 1)->find('a', 0)->innertext;
+		} else {
+			// 没有出版社信息可以获取,只好自己赋值　
+			$publisher = '未知';
+		}
+
+		return $publisher;
+
+	} else {
+		$publisher = $html->find('.book_messbox', 0 )->find('a', 1)->innertext;
+		return $publisher;
+	}
 }
 
 
@@ -165,7 +195,7 @@ function getPublisher( $html )
 
 
 // 本类型的页数，正常是有 100页（除去第一页的 url 不能用之外）剩下99页，（1页有60本书的Url, 99页有 5940 本）！！！                                 
-$pageCount = 3;  
+$pageCount = 5;  
 for( $i=1; $i < $pageCount; $i++){
 	// 一个类型内的 99 页循环
 
@@ -176,7 +206,6 @@ for( $i=1; $i < $pageCount; $i++){
     for( $j=0; $j < $perPageCount; $j++) {
         $id = $categoryHtml -> find('#component_0__0__3058', 0 ) -> find('li', $j )->id;
 
-        # test
         // 是否是当当自营，为什么要判断这个，因为进入到一本书的商品页面，当当自营的 与 非当当自营的 页面布局是有区别（包括 id class 名不一等等）
         // 因此，获图书信息之前，先判断下 $isSelfSupport 再进行信息的获取.
        	$shop = $categoryHtml -> find('#component_0__0__3058', 0 ) -> find('li', $j )->find('div', 0)->find('p', 6)->class;
@@ -188,9 +217,9 @@ for( $i=1; $i < $pageCount; $i++){
 
 
 
-        # test 		
-        #$bookUrl = 'http://product.dangdang.com/'. $id .'.html';
-        $bookUrl = 'http://product.dangdang.com/1086017035.html';
+        $bookUrl = 'http://product.dangdang.com/'. $id .'.html';
+		echo $bookUrl;
+		echo "<br/>";
 
 		$html = file_get_html( $bookUrl  );   
 
@@ -202,9 +231,9 @@ for( $i=1; $i < $pageCount; $i++){
 		$ISBN       = getISBN( $html , $isSelfSupport ); // 做到这里
 		$author     = $arr['author'];
 		$translator = $arr['translator'];
-		$price      = getPrice( $html );
+		$price      = getPrice( $html , $isSelfSupport );
 		$page       = getPage( $html , $isSelfSupport);
-		$publisher  = getPublisher( $html );
+		$publisher  = getPublisher( $html , $isSelfSupport);
 
 
 
