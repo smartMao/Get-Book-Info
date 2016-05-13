@@ -195,7 +195,7 @@ function getPublisher( $html, $isSelfSupport )
 
 
 // 本类型的页数，正常是有 100页（除去第一页的 url 不能用之外）剩下99页，（1页有60本书的Url, 99页有 5940 本）！！！                                 
-$pageCount = 5;  
+$pageCount = 17;  
 for( $i=1; $i < $pageCount; $i++){
 	// 一个类型内的 99 页循环
 
