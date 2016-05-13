@@ -21,6 +21,19 @@ mysql_connect('localhost','root', '');
 mysql_select_db('library');
 mysql_query('set names gbk');
 
+header("Content-type:text/html;charset=gbk");
+
+include_once 'simple_html_dom.php';
+
+
+#$bookTypeID  = $_POST['bookType'];
+#$bookshelfID = $_POST['bookshelf']; 
+$bookTypeID  = 13; 
+$bookshelfID = 56; 
+date_default_timezone_set('PRC');
+$date = date('Y-m-d');
+
+
 function dump( $data )
 {
 	echo "<pre>";
@@ -29,11 +42,7 @@ function dump( $data )
 }
 
 
-include_once 'simple_html_dom.php';
 
-
-
-header("Content-type:text/html;charset=gbk");
 
 
 function getPage( $html )
@@ -107,121 +116,90 @@ function getPublisher( $html )
 
 
 
-// 读取文件信息
-
-$file      = file_get_contents( $_POST['file']);
-$fileNotBr = preg_replace('/\r|\n/', '`', $file);
-$urlList   = explode('`', $fileNotBr);
 
 
 
-foreach ( $urlList as $key => $value )
-{
-	if( strlen( $urlList[$key]) < 20 ){ continue; }
-	$html = file_get_html( $value  );	
 
-	# wait ......
+// 本类型的页数，正常是有 100页（除去第一页的 url 不能用之外）剩下99页，（1页有60本书的Url, 99页有 5940 本）！！！                                 
+$pageCount = 4;  
+for( $i=2; $i < $pageCount; $i++){
+	// 一个类型内的 99 页循环
 
-	$arr = getAuthorAndTranslator( $html );
-	 
-	$book[$key]['bookName']   = getBookName( $html );
-	$book[$key]['ISBN']       = getISBN( $html );
-	$book[$key]['author']     = $arr['author'];
-	$book[$key]['translator'] = $arr['translator'];
-	$book[$key]['price']      = getPrice( $html );
-	$book[$key]['page']       = getPage( $html );
-	$book[$key]['publisher']  = getPublisher( $html );
-	 	
-	
-	$bookName   = $book[$key]['bookName'];
-	$ISBN       = $book[$key]['ISBN'];
-	$author     = $book[$key]['author'];
-	$translator = $book[$key]['translator'];
-	$price      = $book[$key]['price'];
-	$page       = $book[$key]['page'];
-	
-	#dump( $book );exit;
-	// 出版社名称已准备好
+    $categoryHtml = file_get_html('http://category.dangdang.com/pg'. $i .'-cp01.63.00.00.00.00.html');
+    
+    $perPageCount = 60;
 
+    for( $j=0; $j < $perPageCount; $j++) {
+        $id = $categoryHtml -> find('#component_0__0__3058', 0 ) -> find('li', $j )->id;
+        $bookUrl = 'http://product.dangdang.com/'. $id .'.html';
 
-	/*
-	 *  问题检测
-	 */
-	/*
-	if ( empty( $bookName)){
-		echo "书名问题";exit;
-	}
+		$html = file_get_html( $bookUrl  );   
 
-	if ( empty( $ISBN)){
-		echo "ISBN问题";exit;
-	}
+		# wait ......
 
-	if ( empty( $author)){
-		#
-	}
-
-	if ( empty( $price)){
-		#
-	}
-	 */
+		$arr = getAuthorAndTranslator( $html );
+		 
+		$bookName   = getBookName( $html );
+		$ISBN       = getISBN( $html );
+		$author     = $arr['author'];
+		$translator = $arr['translator'];
+		$price      = getPrice( $html );
+		$page       = getPage( $html );
+		$publisher  = getPublisher( $html );
 
 
 
-	# 循环出 lib_publisher 里的全部的出版社信息
+		# 循环出 lib_publisher 里的全部的出版社信息
 
-	$publisherSql  = "SELECT * FROM lib_publisher";
-	$publisherQuery = mysql_query( $publisherSql );
-	while ( $rows = mysql_fetch_assoc( $publisherQuery ))
-	{
-		$publisherArr[] = $rows;
-	}
-
-
-	foreach ( $publisherArr as $pubKey => $pubVal )
-	{
-		// 如果爬取的图书信息 的 出版社 和 lib_publisher 有相匹配的. 
-		if( $book[$key]['publisher'] == $publisherArr[$pubKey]['publisherName'] ){
-				// 出版社ID
-				$publisherID = $publisherArr[$pubKey]['PK_publisherID'];		
+		$publisherSql  = "SELECT * FROM lib_publisher";
+		$publisherQuery = mysql_query( $publisherSql );
+		while ( $rows = mysql_fetch_assoc( $publisherQuery ))
+		{
+			$publisherArr[] = $rows;
 		}
-	}
 
 
-	// 将爬取到的 图书信息插入到 lib_bookInfo 后得到新插入条目的 ID
-
-	$bookInfoSql = "INSERT lib_bookInfo(bookInfoBookName, bookInfoBookISBN, bookInfoBookAuthor, bookInfoBookTranslator, bookInfoBookPrice, bookInfoBookPage ) VALUES ( '$bookName', '$ISBN', '$author', '$translator', '$price', '$page');";
-
-	$bookInfoQuery = mysql_query( $bookInfoSql);
-	$bookInfoID    = mysql_insert_id();
-
-	if( !$bookInfoQuery ){
-		echo "bookInfo 数据表插入错误";exit;
-	}
+		foreach ( $publisherArr as $pubKey => $pubVal )
+		{
+			// 如果爬取的图书信息 的 出版社 和 lib_publisher 有相匹配的. 
+			if( $publisher == $publisherArr[$pubKey]['publisherName'] ){
+					// 出版社ID
+					$publisherID = $publisherArr[$pubKey]['PK_publisherID'];		
+			}
+		}
 
 
+		// 将爬取到的 图书信息插入到 lib_bookInfo 后得到新插入条目的 ID
+
+		$bookInfoSql = "INSERT lib_bookInfo(bookInfoBookName, bookInfoBookISBN, bookInfoBookAuthor, bookInfoBookTranslator, bookInfoBookPrice, bookInfoBookPage ) VALUES ( '$bookName', '$ISBN', '$author', '$translator', '$price', '$page');";
+
+		$bookInfoQuery = mysql_query( $bookInfoSql);
+		$bookInfoID    = mysql_insert_id();
+
+		if( !$bookInfoQuery ){
+			echo "bookInfo 数据表插入错误";
+			echo "<br/>";
+		}
 
 
-	$bookTypeID  = $_POST['bookType'];
-	$bookshelfID = $_POST['bookshelf']; 
-	date_default_timezone_set('PRC');
-	$date = date('Y-m-d');
+		
+		# 得到上面的 bookInfo ID ，在加上 提交的 图书类型 和 书架 , 和 自动匹配的 出版社名称 
 
-	
-	# 得到上面的 bookInfo ID ，在加上 提交的 图书类型 和 书架 , 和 自动匹配的 出版社名称 
+		$bookRelationSql = "INSERT lib_bookRelationship( FK_bookInfoID, FK_publisherID, FK_bookTypeID, FK_managerID, FK_bookshelfID, bookRelationshipStorageTime ) VALUES( '$bookInfoID', '$publisherID', '$bookTypeID', '1', '$bookshelfID', '$date');";
+		$bookRelationQuery = mysql_query( $bookRelationSql );
 
-	$bookRelationSql = "INSERT lib_bookRelationship( FK_bookInfoID, FK_publisherID, FK_bookTypeID, FK_managerID, FK_bookshelfID, bookRelationshipStorageTime ) VALUES( '$bookInfoID', '$publisherID', '$bookTypeID', '1', '$bookshelfID', '$date');";
-	$bookRelationQuery = mysql_query( $bookRelationSql );
-
-	if( $bookRelationQuery ){
-		echo "数据已成功进入数据库! <a href='index.php'> goback </a> ";
-		echo "<br/>";
-	} else {
-		echo "数据插入 bookRelationship 时失败";
-	}
+		if( $bookRelationQuery ){
+			echo "数据已成功进入数据库! <a href='index.php'> goback </a> ";
+			echo "<br/>";
+		} else {
+			echo "数据插入 bookRelationship 时失败";
+		}
 
 
 
-}  // 上面循环取 url 的 foreach 的结束
 
+
+    } // 每个页面内的 60 本书的 url 循环
+} // 进入图书列表的页面 的循环 用于把 99 个页面 都循环出来 
 
 
