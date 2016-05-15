@@ -27,7 +27,6 @@ mysql_connect('localhost','root', '');
 mysql_select_db('library');
 mysql_query('set names gbk');
 
-header("Content-type:text/html;charset=gbk");
 
 include_once 'simple_html_dom.php';
 
@@ -35,8 +34,8 @@ include_once 'simple_html_dom.php';
 $bookTypeID  = $_POST['bookType'];
 $bookshelfID = $_POST['bookshelf']; 
 $urlCode     = $_POST['urlCode'];
-#$bookTypeID  = 13; 
-#$bookshelfID = 56; 
+
+
 date_default_timezone_set('PRC');
 $date = date('Y-m-d');
 
@@ -188,6 +187,26 @@ function getPublisher( $html, $isSelfSupport )
 }
 
 
+/*
+ * 未使用 file_get_html 前，先用 curl 探测下循环出来图书 url 是不是 404页面
+ */
+function isNotFound( $url )
+{
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL,$url);
+	curl_setopt($ch, CURLOPT_HEADER, true);
+	curl_setopt($ch, CURLOPT_NOBODY,true);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER,true);
+	curl_setopt($ch, CURLOPT_FOLLOWLOCATION,true);
+	curl_setopt($ch, CURLOPT_AUTOREFERER,true);
+	curl_setopt($ch, CURLOPT_TIMEOUT,30);
+	$rtn = curl_exec($ch);
+	curl_exec($ch);
+	$res = substr( $rtn , 0 , 12 );
+	return $res;
+}
+
+
 
 
 
@@ -195,7 +214,7 @@ function getPublisher( $html, $isSelfSupport )
 
 
 // 本类型的页数，正常是有 100页（除去第一页的 url 不能用之外）剩下99页，（1页有60本书的Url, 99页有 5940 本）！！！                                 
-$pageCount = 17;  
+$pageCount = 60;  // 在此设置要循环一个分类的多少页  
 for( $i=1; $i < $pageCount; $i++){
 	// 一个类型内的 99 页循环
 
@@ -220,6 +239,13 @@ for( $i=1; $i < $pageCount; $i++){
         $bookUrl = 'http://product.dangdang.com/'. $id .'.html';
 		echo $bookUrl;
 		echo "<br/>";
+
+		// 检测循环出来的 url 是 404 页面吗？
+		if( isNotFound( $bookUrl ) == 'HTTP/1.1 404'){
+			echo "遇到了 404 页面, 不过我机智的跳过了";
+			break;		
+		}
+
 
 		$html = file_get_html( $bookUrl  );   
 
