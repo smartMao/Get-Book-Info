@@ -16,7 +16,7 @@
  *		获取到一个 html dom 结构，从中读取图书信息，存入数据库。
  *		这就完成了一次循环。 而这样的循环估计要做 6000 次（如果要把一个
  *		分类下的所有图书都循环完成的话） 
- *
+ *;;;;;;;;;;;
  *		缺点：没有！！哈哈哈哈
  * 
  *
@@ -116,10 +116,38 @@ function getAuthorAndTranslator( $html , $isSelfSupport)
 
 	} else {
 		// 非当当自营
-		$data['author'] = $html->find('.book_messbox', 0 )->find('div', 0) -> find('.show_info_right', 0) -> find('a', 0)->innertext;
-		$data['translator'] = null;
+		$elm = $html->find('.show_info_autoheight');
+		$elmCount = count( $elm[0] -> children );
+		if( $elmCount >= 6 ){
 
-		return $data;
+			$elm = $html->find('.book_messbox', 0 )->find('div', 0) -> find('.show_info_right', 0); 
+			$count  = count( $elm -> children );
+			if( $count ){
+				$data['author'] = $html->find('.book_messbox', 0 )->find('div', 0) -> find('.show_info_right', 0) -> find('a', 0)->innertext;
+				$data['translator'] = null;
+
+				return $data;
+			} else {
+
+				 // 当 非自营页面 的 作者 不是超链接, 只是一个文本
+                 $elm = $html->find('.book_messbox', 0 )->find('div', 0) -> find('.show_info_right', 0);
+                 $data['author'] = $elm -> innertext;
+                 $data['translator'] = null;
+                 return $data;
+			
+			}
+
+
+		
+		} else{
+
+			echo "在非当当自营中 没有作者等相关信息    <span style='color:blue' >[ 跳过 ]</span>";
+			echo "<br/>";
+			$data['author'] = '未知';
+			$data['translator'] = '未知';
+
+			return $data;	
+		}
 	}
 }
 
@@ -130,12 +158,26 @@ function getISBN( $html , $isSelfSupport )
 {
 	if( $isSelfSupport ){
 
-		#$div = $html->find('.pro_content', 0);
-		$liData = $html->find('.pro_content', 0) -> find('ul', 0) -> find('li', 9);
-		$strISBN = $liData->innertext;
-		preg_match('/[0-9]{8,13}/', $strISBN, $ISBN);
+		$elm = $html->find('.messbox_info');
+		$elmCount = count( $elm[0] -> children );
+		
+		if( $elmCount >= 4 ){
 
-		return $ISBN[0];
+			#$div = $html->find('.pro_content', 0);
+			$liData = $html->find('.pro_content', 0) -> find('ul', 0) -> find('li', 9);
+			$strISBN = $liData->innertext;
+			preg_match('/[0-9]{8,13}/', $strISBN, $ISBN);
+
+			return $ISBN[0];
+		
+		} else {
+			
+			echo "没有作者等相关信息    <span style='color:blue' >[ 跳过 ]</span>";
+			echo "<br/>";
+			$ISBN = '未知';
+			return $ISBN;
+
+		}
 
 	} else {
 
@@ -209,20 +251,28 @@ function isNotFound( $url )
 
 
 
+// 统计现在插入到第几本书
+$index = 0;
 
-
-
+$page = isset( $_POST['page'] ) ? $_POST['page'] : 1;
 
 // 本类型的页数，正常是有 100页（除去第一页的 url 不能用之外）剩下99页，（1页有60本书的Url, 99页有 5940 本）！！！                                 
-$pageCount = 60;  // 在此设置要循环一个分类的多少页  
-for( $i=1; $i < $pageCount; $i++){
+$pageCount = 100;  // 在此设置要循环一个分类的多少页  
+for( $i= $page ; $i <= $pageCount; $i++){
 	// 一个类型内的 99 页循环
+
+	echo "<br/>";
+	echo "进入第" . $i . "页     <span style='color:green'>[ 成功 ]</span>";
+	echo "<br/>";
 
     $categoryHtml = file_get_html('http://category.dangdang.com/pg'. $i .'-'. $urlCode .'.html');
     
     $perPageCount = 60;
 
     for( $j=0; $j < $perPageCount; $j++) {
+		
+		$index = $index + 1;
+
         $id = $categoryHtml -> find('#component_0__0__3058', 0 ) -> find('li', $j )->id;
 
         // 是否是当当自营，为什么要判断这个，因为进入到一本书的商品页面，当当自营的 与 非当当自营的 页面布局是有区别（包括 id class 名不一等等）
@@ -242,7 +292,7 @@ for( $i=1; $i < $pageCount; $i++){
 
 		// 检测循环出来的 url 是 404 页面吗？
 		if( isNotFound( $bookUrl ) == 'HTTP/1.1 404'){
-			echo "遇到了 404 页面, 不过我机智的跳过了";
+			echo "遇到了 404 页面     <span style='color:blue'>[ 跳过 ]</span>";
 			break;		
 		}
 
@@ -283,6 +333,19 @@ for( $i=1; $i < $pageCount; $i++){
 		}
 
 
+		if( !isset( $publisherID ) ){
+
+			$publisherSql = "INSERT lib_publisher(publisherName) VALUES ('$publisher');";
+			$publisherQuery = mysql_query( $publisherSql );
+			$publisherID = mysql_insert_id();
+			echo "由于 " . $publisher . " 在数据库内没有找到, 所以将其加入出版社数据表     <span style='color:green'>[ 成功 ]</span>";  
+			echo "<br/>";
+		}
+
+
+
+
+
 		// 将爬取到的 图书信息插入到 lib_bookInfo 后得到新插入条目的 ID
 
 		$bookInfoSql = "INSERT lib_bookInfo(bookInfoBookName, bookInfoBookISBN, bookInfoBookAuthor, bookInfoBookTranslator, bookInfoBookPrice, bookInfoBookPage ) VALUES ( '$bookName', '$ISBN', '$author', '$translator', '$price', '$page');";
@@ -291,23 +354,26 @@ for( $i=1; $i < $pageCount; $i++){
 		$bookInfoID    = mysql_insert_id();
 
 		if( !$bookInfoQuery ){
-			echo "bookInfo 数据表插入错误";
+			echo "bookInfo 数据表插入错误     <span style='color:blue'>[ 跳过 ]</span>";
 			echo "<br/>";
+		} else {
+		
+			# 得到上面的 bookInfo ID ，在加上 提交的 图书类型 和 书架 , 和 自动匹配的 出版社名称 
+
+			$bookRelationSql = "INSERT lib_bookRelationship( FK_bookInfoID, FK_publisherID, FK_bookTypeID, FK_managerID, FK_bookshelfID, bookRelationshipStorageTime ) VALUES( '$bookInfoID', '$publisherID', '$bookTypeID', '1', '$bookshelfID', '$date');";
+			$bookRelationQuery = mysql_query( $bookRelationSql );
+
+			if( $bookRelationQuery ){
+				echo "第 ". $index . " 本书插入数据库     <span style='color:green'>[ 成功 ]</span>";
+				echo "<br/>";
+			} else {
+				echo "bookRelationship 数据表插入    <span style='color:red'>[ 失败 ]</span>";
+				echo "<br/>";
+			}
 		}
 
 
 		
-		# 得到上面的 bookInfo ID ，在加上 提交的 图书类型 和 书架 , 和 自动匹配的 出版社名称 
-
-		$bookRelationSql = "INSERT lib_bookRelationship( FK_bookInfoID, FK_publisherID, FK_bookTypeID, FK_managerID, FK_bookshelfID, bookRelationshipStorageTime ) VALUES( '$bookInfoID', '$publisherID', '$bookTypeID', '1', '$bookshelfID', '$date');";
-		$bookRelationQuery = mysql_query( $bookRelationSql );
-
-		if( $bookRelationQuery ){
-			echo "数据已成功进入数据库! <a href='index.php'> goback </a> ";
-			echo "<br/>";
-		} else {
-			echo "数据插入 bookRelationship 时失败";
-		}
 
 
 
